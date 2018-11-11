@@ -24,6 +24,9 @@ module.exports = {
         name: 'inspector'
       }
     ],
-    '@neutrinojs/jest'
+    ['@neutrinojs/jest', {
+      testRegex: 'src/.*(_test|_spec|\\.test|\\.spec)\\.(js|jsx|vue|ts|tsx|mjs)$',
+     // 'setupFiles': ['raf/polyfill']
+    }],
   ]
 };
