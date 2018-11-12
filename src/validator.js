@@ -1,10 +1,10 @@
 import Is from 'is';
 
-import { NOT_ABSENT } from './constants';
+import { NOT_ABSENT, REQUIRED_NOT_SET } from './constants';
 import collector from './collector';
 import ifFn from './ifFn';
 
-export default (tests, { required = false, onFail = false }) => {
+export default (tests, { required = REQUIRED_NOT_SET, onFail = false }) => {
   let testList;
   if (Array.isArray(tests)) {
     testList = tests.map(crit => (Array.isArray(crit) ? crit : [crit, false, onFail]));
@@ -24,7 +24,10 @@ export default (tests, { required = false, onFail = false }) => {
       ],
       { reducer: 'and' },
     )(value)[1] || false;
+  } else if (required === REQUIRED_NOT_SET) {
+    return collector(validationTests, { reducer: 'filter' });
   }
+
   const requiredMsg = (Is.string(required)) ? required : 'required';
   const compound = collector(
     [

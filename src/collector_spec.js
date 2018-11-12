@@ -60,6 +60,46 @@ describe('inspector', () => {
       });
     });
 
+    describe('another and', () => {
+      const isOneTwoorThree = collector(
+        [
+          [a => a === 1, 'one'],
+          [a => a === 2, 'two'],
+          [a => a === 3, 'three'],
+        ],
+        { reducer: 'or' },
+      );
+
+      it('should return one for 1', () => {
+        expect(isOneTwoorThree(1))
+          .toEqual('one');
+      });
+      it('should return false for 4', () => {
+        expect(isOneTwoorThree(4))
+          .toEqual(false);
+      });
+
+      describe('test exclusion', () => {
+        const notOneTwoOrThree = collector(
+          [
+            [a => a === 1, false, 'one'],
+            [a => a === 2, false, 'two'],
+            [a => a === 3, false, 'three'],
+          ],
+          { reducer: 'and' },
+        );
+
+        it('should return one for 1', () => {
+          expect(notOneTwoOrThree(1))
+            .toEqual(false);
+        });
+        it('should return false for 4', () => {
+          expect(notOneTwoOrThree(4))
+            .toEqual(['one', 'two', 'three']);
+        });
+      });
+    });
+
     describe('or', () => {
       const c = collector([a => a < 4, a => a % 2 === 1, a => a > 10], {
         reducer: 'or',
