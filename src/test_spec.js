@@ -1,9 +1,9 @@
-import test from './test';
+import ifFn from './ifFn';
 
 describe('inspector', () => {
-  describe('test', () => {
+  describe('ifFn', () => {
     it('should return basic function without succeed/fail', () => {
-      const c = test(a => a > 4);
+      const c = ifFn(a => a > 4);
 
       expect(c(3))
         .toEqual(false);
@@ -11,7 +11,7 @@ describe('inspector', () => {
         .toEqual(true);
     });
     it('should return success result on true with succeed', () => {
-      const c = test(a => a > 4, 'greater than 4');
+      const c = ifFn(a => a > 4, 'greater than 4');
 
       expect(c(3))
         .toEqual(false);
@@ -20,7 +20,7 @@ describe('inspector', () => {
     });
 
     it('should return error message on fail with onFail', () => {
-      const c = test(a => a > 4, false, 'lte 4');
+      const c = ifFn(a => a > 4, false, 'lte 4');
       expect(c(3))
         .toEqual('lte 4');
       expect(c(5))
@@ -28,7 +28,7 @@ describe('inspector', () => {
     });
 
     it('should return either messages if both are present', () => {
-      const c = test(a => a > 4, 'gt4', 'lte 4');
+      const c = ifFn(a => a > 4, 'gt4', 'lte 4');
       expect(c(3))
         .toEqual('lte 4');
       expect(c(5))
@@ -36,7 +36,7 @@ describe('inspector', () => {
     });
 
     it('should accept success function', () => {
-      const c = test(a => a > 4, value => `${value} is greater than 4`);
+      const c = ifFn(a => a > 4, value => `${value} is greater than 4`);
 
       expect(c(3))
         .toEqual(false);
@@ -45,7 +45,7 @@ describe('inspector', () => {
     });
 
     it('should accept failure function', () => {
-      const c = test(a => a > 4, false, value => `${value} is not greater than 4`);
+      const c = ifFn(a => a > 4, false, value => `${value} is not greater than 4`);
       expect(c(3))
         .toEqual('3 is not greater than 4');
       expect(c(5))
@@ -54,7 +54,7 @@ describe('inspector', () => {
 
     describe('with type tests', () => {
       it('should return standard failure message without succeed/fail', () => {
-        const c = test('array');
+        const c = ifFn('array');
 
         expect(c(3))
           .toEqual('not an array');
@@ -62,7 +62,7 @@ describe('inspector', () => {
           .toEqual(false);
       });
       it('should return success result on true with succeed', () => {
-        const c = test('array', 'is array');
+        const c = ifFn('array', 'is array');
 
         expect(c(3))
           .toEqual(false);
@@ -71,7 +71,7 @@ describe('inspector', () => {
       });
 
       it('should return error message on fail with onFail', () => {
-        const c = test('array', false, 'not an array');
+        const c = ifFn('array', false, 'not an array');
         expect(c(3))
           .toEqual('not an array');
         expect(c([3]))
@@ -79,7 +79,7 @@ describe('inspector', () => {
       });
 
       it('should return either messages if both are present', () => {
-        const c = test('array', 'array', 'not array');
+        const c = ifFn('array', 'array', 'not array');
         expect(c(3))
           .toEqual('not array');
         expect(c([3]))

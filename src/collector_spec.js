@@ -12,7 +12,7 @@ describe('inspector', () => {
       }
     });
 
-    it('should return values mapped through test on a function', () => {
+    it('should return values mapped through testModule on a function', () => {
       const c = collector(a => 2 * a);
       expect(c(1))
         .toEqual([2]);
@@ -72,12 +72,12 @@ describe('inspector', () => {
 
       it('should return results if one of the tests are true', () => {
         expect(c(2))
-          .toEqual([true]);
+          .toEqual(true);
       });
 
       it('should return no results if more than one are true', () => {
         expect(c(1))
-          .toEqual([true, true]);
+          .toEqual(true);
       });
     });
   });

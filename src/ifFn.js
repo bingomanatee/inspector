@@ -1,6 +1,6 @@
 import Is from 'is';
 
-const test = (crit, onSucceed = false, onFail = false) => {
+const ifFn = (crit, onSucceed = false, onFail = false) => {
   let rule = crit;
   if (Is.string(rule)) {
     if (!onFail && !onSucceed) onFail = `not an ${rule}`;
@@ -17,4 +17,4 @@ const test = (crit, onSucceed = false, onFail = false) => {
   };
 };
 
-export default test;
+export default ifFn;

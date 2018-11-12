@@ -2,24 +2,36 @@ import Is from 'is';
 
 import { NOT_ABSENT } from './constants';
 import collector from './collector';
-import test from './test';
+import ifFn from './ifFn';
 
 export default (tests, { required = false, onFail = false }) => {
   let testList;
   if (Array.isArray(tests)) {
-    testList = tests.map(crit => (Array.isArray(crit) ? crit : [crit, onFail]));
+    testList = tests.map(crit => (Array.isArray(crit) ? crit : [crit, false, onFail]));
   } else if (Is.object(tests)) {
-    testList = Object.keys(tests).map(ifFail => [tests[ifFail], ifFail]);
+    testList = Object.keys(tests).map(ifFail => [tests[ifFail], false, ifFail]);
   } else {
-    testList = [[tests, onFail]];
+    testList = [[tests, false, onFail]];
   }
 
-  const validationTests = testList.map(args => test(...args));
+  const validationTests = testList.map(args => ifFn(...args));
 
   if (!required) {
-    return collector([test(a => a, NOT_ABSENT), collector(validationTests, 'or')], { reducer: 'and' })[1];
+    return value => collector(
+      [
+        ifFn(a => a, NOT_ABSENT),
+        collector(validationTests, { reducer: 'filter' }),
+      ],
+      { reducer: 'and' },
+    )(value)[1] || false;
   }
-  const requredMsg = (is.string(required)) ? required : 'required';
-  validationTests.unshift([a => a, requredMsg]);
-  return collector(validationTests, 'or');
+  const requiredMsg = (Is.string(required)) ? required : 'required';
+  const compound = collector(
+    [
+      ifFn(a => a, false, [requiredMsg]),
+      collector(validationTests, { reducer: 'filter' }),
+    ],
+    { reducer: 'or' },
+  );
+  return value => compound(value);
 };
