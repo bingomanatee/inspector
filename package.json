@@ -1,7 +1,7 @@
 {
-  "name": "@bingomanatee/inspector",
+  "name": "@wonderlandlabs/inspector",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "build/index.js",
   "license": "MIT",
   "scripts": {
     "build": "neutrino build",
@@ -16,5 +16,21 @@
   },
   "dependencies": {
     "is": "^3.2.1"
-  }
+  },
+  "description": "Inspector evaluates things using one or more tests and returns validation results.",
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bingomanatee/inspector.git"
+  },
+  "keywords": [
+    "validation"
+  ],
+  "author": "David Edelhart",
+  "bugs": {
+    "url": "https://github.com/bingomanatee/inspector/issues"
+  },
+  "homepage": "https://github.com/bingomanatee/inspector#readme"
 }

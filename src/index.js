@@ -1,4 +1,5 @@
-import Test from './Test';
-import Collector from './Collector';
+import ifFn from './ifFn';
+import collector from './collector';
+import validator from './validator';
 
-export { Test, Collector };
+export { ifFn, validator, collector };
