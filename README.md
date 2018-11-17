@@ -20,79 +20,165 @@ If it is passed a non-string/array it fails.
 
 Seems simple but there is a lot of branches here:
 
+```
+isYesNoStringOrArrayOfYesNoStrings
+  'string' -- type test
+  if string: 
+      stringIsYesOrNo:
+      test string for 'yes/no' equality
+          if true
+              return false
+          else
+              returns "string is not yes or no"
+  else: 
+      isArrayAndArrayOfYesNoStrings
+          if array:
+              if eachElementIsYesOrNoString
+                    for each element 
+                       if stringIsYesOrNo(element) is an error
+                           return element, index and error
+                       else 
+                           return false;
+              compose error message based on index, error, and value
+          else: (failed string and array type tests)
+              'not an array or a string'
+```
+
+Inspector is a DSL for these kind of logical relationships:
+
+```javascript
+const stringIsYesOrNo = ifFn(a => /^yes|no$/.test(a), false, 'string is not yes or no');
+const isStringAndYesOrNo = ifFn('string', stringIsYesOrNo, 'non string');
+const eachElementIsYesOrNoString = list => {
+  return list.reduce((m, value, index) => m || (error => error && {
+    value, index, error
+  })(isStringAndYesOrNo(value)), false);
+};
+const isArrayOfYesOrNoStrings = ifFn(eachElementIsYesOrNoString, (badValue, error) => {
+  return `array element ${error.index} failed - (${error.value}) ${error.error}`;
+});
+
+const YNtest = validator(orFn(
+  [andFn(
+    'string',
+    'array',
+  ), 'not a string or array'],
+  ['string', stringIsYesOrNo],
+  ['array', isArrayOfYesOrNoStrings],
+));
+
+YNtest('yes');               // false
+YNtest('f');                 // ['string is not yes or no']
+YNtest(1);                   // ['not a string or array']
+YNtest(['no', 'yes']);       // false
+YNtest(['yes', 'no', 'f' ]); // ['array element 2 failed - (f) string is not yes or no']
+
+```
+Some notes on the root YNtest block:
+
+* the outer block is an "or". it stops executing as soon as one of its tests is true and
+  returns that result. it captures each result as an inner 'or' test then inverts
+  the result with the outer 
+* The first test is a type test; the value is a string or an array, it returns false;
+  otherwise it returns a string('not a string or array') and stops.
+* The second test executes if the value is a string; it executes a simple regex test 
+  and if the test fails, returns an error string('string is not yes or no').
+* The third test executes if the value is an array; it runs the string test 
+  over each element and on failure, describes which cell failed. 
+
+The same code with annotation
+
 ```javascript
 // the basic test -- assumes input is a string
 const stringIsYesOrNo = ifFn(a => /^yes|no$/.test(a), false, 'string is not yes or no');
-
 // executes the above IF input is a string
 const isStringAndYesOrNo = ifFn('string', stringIsYesOrNo, 'non string');
 // tests each values of the array -- assumes input is an array
-const eachElementIsYesOrNoString = list => list.reduce((m, value, index) => {
-  if (m) return m;
-  const error = isStringAndYesOrNo(value);
-  if (error) {
-    return {
-      value,
-      index,
-      error,
-    };
-  }
-  return false;
-}, false);
-// IF input is an array runs above tests -- otherwise fails.
-//    runs eachElementIsYesOrNoString but replaces failure message with
-//    a message about ARRAY failure
+const eachElementIsYesOrNoString = list => {
+  return list.reduce((m, value, index) => m || (error => error && {
+    value, index, error
+  })(isStringAndYesOrNo(value)), false);
+};
+const isArrayOfYesOrNoStrings = ifFn(eachElementIsYesOrNoString, (badValue, error) => {
+return `array element ${error.index} failed - (${error.value}) ${error.error}`;
+});
 
-// eslint-disable-next-line prefer-arrow-callback
-const isArrayOfYesOrNoStrings = ifFn(eachElementIsYesOrNoString, function (badValue, error) {
-  return `array element ${error.index} failed - (${error.value}) ${error.error}`;
-}, false);
+const YNtest = validator(orFn(
+  [andFn(
+    'string',
+    'array',
+  ), 'not a string or array'],
+  ['string', stringIsYesOrNo],
+  ['array', isArrayOfYesOrNoStrings],
+));
 
-// listens to the non-string branch of the root
-// if in array, runs test on each element - else fails both type tests
-const isArrayAndArrayOfYesNoStrings = ifFn('array', isArrayOfYesOrNoStrings, 'not an array or a string');
+YNtest('yes');               // false
+YNtest('f');                 // ['string is not yes or no']
+YNtest(1);                   // ['not an array or a string']
+YNtest(['no', 'yes']);       // false
+YNtest(['yes', 'no', 'f' ]); // ['array element 2 failed - (f) string is not yes or no']
 
-const isYesNoStringOrArrayOfYesNoStrings = ifFn(
-  'string', stringIsYesOrNo,
-  isArrayAndArrayOfYesNoStrings,
-);
-
-return validator(root);
 ```
-       
+
+validator returns false if the value passes, and an array of the first failed error
+if the test result is truthy.
+
+A large amount of logic can be tied together with testable sub-assertions. 
 
 ## The Building Blocks
 
-note that in this system "false is the new true"; false means a test value has passed
+### Some important principles
+
+#### "False is the new true"
+
+In inspector, "false is the new true"; false(y) means a test value has passed (none of the tests have failed)
 the expected test, but non-falsy value indicates a failure, explained by the result.
 
-### Iffn (ifFunctions)
+#### "boolean collectors don't keep testing if they get a terminal result"
 
-Inspector is built using functional principles of map-reduce. Tests are expressed in iffns -- if functions,
-that create functions from the building blocks of `test, ifTrue, ifFalse`. For the purposes of validation
-`false` means "no errors", the expected result of a valid variable. There is one shorthand here, testing for
-type by name (as a key to the `is` module) is evaluated by iffn as `is[name], false, 'not a [name]'`. 
+* andFn (collector(tests, 'and')) stops executing when a test returns a positive value (fails).
+* orFn (collector(tests, 'orl)) stops executing when a test returns a negative value (succeeds).
 
-ifFn returns a function; also if there ifTrue and ifFalse are empty, the original function is returned.
-for that reason, 
+so,
 
 ```javascript
 
-const posFn = ifFn(a => a > 0, null, 'negative');
-posFn = (value) => a > 0 ? false : 'negative';
+const isBob = orFn('string',(a) => /^Bob/.test(a) ? false : 'not bob')
+
+```
+
+is safe because when the string test returns an error ('not a string') the regex will never be hit. 
+
+### Iffn (ifFunctions)
+
+Inspector is built using functional principles of map-reduce. 
+Tests are expressed in iffns -- if functions that create functions 
+from the building blocks of `test, ifTrue, ifFalse`. 
+
+For the purposes of validation `false` means "no errors", the expected result of a valid variable. 
+There is one shorthand here, testing for type by name (as a key to the `is` module) 
+is evaluated by iffn as `is[name], false, 'not a [name]'`. 
+
+ifFn returns a function; also if there ifTrue and ifFalse are empty, the original function is returned. for that reason, 
+
+```javascript
+
+const posFn = ifFn(a => a > 0, false, 'negative');
+const posFunction = (value) => a > 0 ? false : 'negative';
 
 const posFunctionTested = ifFn(posFn);
-// posFunctionTested is exactly equal to posFn - it is retrned unchanged. 
+// posFunctionTested is exactly equal to posFn - it is returned unchanged. 
 
 const negFn = ifFn(posFn, 'positive');
-// negFunction returne a value when posFn does not. 
+// negFunction returns a value when posFn does not. 
 ````
 
 ### collectors 
 
 ```javascript
 
-collector(test, reducer?)
+collector(tests, reducer?)
+
 ```
 * **tests**:  function |  string | [(function | string | [function, ifFalse, ifTrue])...]
 * **reducer**: 'and', 'or', function, [function, startValue]
@@ -113,7 +199,13 @@ depending on the value of the second argument(reducer).
 'and' or 'or' tests don't necessarily execute all condition tests; and will stop executring
 after the first false result, and or will stop after the first true result. 
 
+#### Logical reducer shortcuts
+
+`andFn(...tests)` is equal to `collector([tests], 'and')`;
+`orFn(...tests)` is equal to `collector([tests], 'or')`;
+
 ```javascript
+/* global collector */
 
 const is123 = collector(
 [

@@ -119,14 +119,7 @@ describe('inspector', () => {
         const eachElementIsYesOrNoString = list => list.reduce((m, value, index) => {
           if (m) return m;
           const error = isStringAndYesOrNo(value);
-          if (error) {
-            return {
-              value,
-              index,
-              error,
-            };
-          }
-          return false;
+          return (error) ? {value, index, error}: false
         }, false);
         // IF input is an array runs above tests -- otherwise fails.
         //    runs eachElementIsYesOrNoString but replaces failure message with
@@ -156,9 +149,7 @@ describe('inspector', () => {
             .toEqual('string is not yes or no');
         });
 
-        it('should fail if passes a non string or array');
-
-        it('should return not an array for non array non string', () => {
+        it('should return error for non array non string', () => {
           expect(isYesNoStringOrArrayOfYesNoStrings(1))
             .toEqual('not an array or a string');
         });

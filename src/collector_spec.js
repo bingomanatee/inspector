@@ -1,4 +1,6 @@
 import collector from './collector';
+import ifFn from './ifFn';
+import { andFn, orFn } from './bool';
 
 describe('inspector', () => {
   describe('collector', () => {
@@ -48,7 +50,7 @@ describe('inspector', () => {
     });
 
     describe('and', () => {
-      const c = collector([a => a > 0, a => a % 2 === 0, a => a < 10], 'and');
+      const c = andFn(a => a > 0, a => a % 2 === 0, a => a < 10);
 
       it('should return all the results if all are true', () => {
         expect(c(4))
@@ -124,6 +126,54 @@ describe('inspector', () => {
       it('should return no results if more than one are true', () => {
         expect(c(1))
           .toEqual(true);
+      });
+    });
+
+    describe('compound tests', () => {
+      // the basic test -- assumes input is a string
+      const stringIsYesOrNo = ifFn(a => /^yes|no$/.test(a), false, 'string is not yes or no');
+      // executes the above IF input is a string
+      const isStringAndYesOrNo = ifFn('string', stringIsYesOrNo, 'non string');
+      // tests each values of the array -- assumes input is an array
+      const eachElementIsYesOrNoString = list => list.reduce((m, value, index) => m || (error => error && {
+        value,
+        index,
+        error,
+      })(isStringAndYesOrNo(value)), false);
+      const isArrayOfYesOrNoStrings = ifFn(eachElementIsYesOrNoString, (badValue, error) => `array element ${error.index} failed - (${error.value}) ${error.error}`);
+
+      const isYesNoStringOrArrayOfYesNoStrings = orFn(
+        [andFn(
+          'string',
+          'array',
+        ), 'not a string or array'],
+        ['string', stringIsYesOrNo],
+        ['array', isArrayOfYesOrNoStrings],
+      );
+
+      it('should return true for yes', () => {
+        expect(isYesNoStringOrArrayOfYesNoStrings('yes'))
+          .toEqual(false);
+      });
+
+      it('should return nonBoolean for a non-yes-no', () => {
+        expect(isYesNoStringOrArrayOfYesNoStrings('f'))
+          .toEqual('string is not yes or no');
+      });
+
+      it('should return error for non array non string', () => {
+        expect(isYesNoStringOrArrayOfYesNoStrings(1))
+          .toEqual('not a string or array');
+      });
+
+      it('should return false for an array of strings', () => {
+        expect(isYesNoStringOrArrayOfYesNoStrings(['yes', 'no']))
+          .toBeFalsy();
+      });
+
+      it('should return error if non-match in for an array', () => {
+        expect(isYesNoStringOrArrayOfYesNoStrings(['yes', 'no', 'f']))
+          .toEqual('array element 2 failed - (f) string is not yes or no');
       });
     });
   });

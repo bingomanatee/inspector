@@ -1,5 +1,5 @@
 import Is from 'is';
-import testModule from './ifFn';
+import ifFn from './ifFn';
 
 export default (tests, reducer = false) => {
   let lTests = tests;
@@ -7,10 +7,14 @@ export default (tests, reducer = false) => {
   if (!Array.isArray(lTests)) {
     throw new Error('collector must receive array');
   }
-
   if (!lTests.length) return () => false;
 
-  lTests = lTests.map(crit => (Array.isArray(crit) ? testModule(...crit) : crit));
+  lTests = lTests.map((crit) => {
+    if (Array.isArray(crit)) {
+      return ifFn(...crit);
+    }
+    return Is.string(crit) ? ifFn(crit) : crit;
+  });
   const mapper = value => lTests.map((crit) => {
     try {
       return crit(value);
@@ -65,10 +69,10 @@ export default (tests, reducer = false) => {
     }, false);
   }
   /**
-     * returns false unless any of the tests return true,
-     * in which case all the test results are returned.
-     * like or, except it doesn't stop at the first positive result.
-     */
+   * returns false unless any of the tests return true,
+   * in which case all the test results are returned.
+   * like or, except it doesn't stop at the first positive result.
+   */
   return (value) => {
     const results = collector(value);
     return results.length > 0 ? results : false;
@@ -87,15 +91,15 @@ export default (tests, reducer = false) => {
  []               false          false        false
 
  a b c d           a            [a b c d]    [a b c d]
-                   b c d
-                   not tested
+ b c d
+ not tested
 
  a => false b c d  b             false        [b c d]
-                   c d           b c d
-                   not tested    not tested
+ c d           b c d
+ not tested    not tested
 
  a b c => false d  a             false        [a b d]
-                   b c d         d
-                   not tested    not tested
+ b c d         d
+ not tested    not tested
 
-*/
+ */
