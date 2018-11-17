@@ -25,22 +25,30 @@ describe('inspector', () => {
         .toEqual([8, 12]);
     });
 
-    it('should reduce with a reducer', () => {
-      const c = collector([a => 2 * a, a => 3 * a], {
-        reducer: [
+    describe('reducer', () => {
+      it('should reduce with a reducer array', () => {
+        const c = collector([a => 2 * a, a => 3 * a], [
           (a, b) => a + b,
-          0,
-        ],
+          7,
+        ]);
+
+        expect(c(4))
+          .toEqual(27);
       });
 
-      expect(c(4))
-        .toEqual(20);
+      it('should accept functional intitializer', () => {
+        const c = collector(
+          [a => a, a => a + 1, a => a + 2],
+          [(a, b) => [...a, b], () => [0, 1, 2]],
+        );
+
+        expect(c(1)).toEqual([0, 1, 2, 1, 2, 3]);
+        expect(c(3)).toEqual([0, 1, 2, 3, 4, 5]);
+      });
     });
 
     describe('and', () => {
-      const c = collector([a => a > 0, a => a % 2 === 0, a => a < 10], {
-        reducer: 'and',
-      });
+      const c = collector([a => a > 0, a => a % 2 === 0, a => a < 10], 'and');
 
       it('should return all the results if all are true', () => {
         expect(c(4))
@@ -60,14 +68,14 @@ describe('inspector', () => {
       });
     });
 
-    describe('another and', () => {
+    describe('or inclusive', () => {
       const isOneTwoorThree = collector(
         [
           [a => a === 1, 'one'],
           [a => a === 2, 'two'],
           [a => a === 3, 'three'],
         ],
-        { reducer: 'or' },
+        'or',
       );
 
       it('should return one for 1', () => {
@@ -79,14 +87,14 @@ describe('inspector', () => {
           .toEqual(false);
       });
 
-      describe('test exclusion', () => {
+      describe('and exclusive', () => {
         const notOneTwoOrThree = collector(
           [
-            [a => a === 1, false, 'one'],
-            [a => a === 2, false, 'two'],
-            [a => a === 3, false, 'three'],
+            [a => a === 1, false, 'not one'],
+            [a => a === 2, false, 'not two'],
+            [a => a === 3, false, 'not three'],
           ],
-          { reducer: 'and' },
+          'and',
         );
 
         it('should return one for 1', () => {
@@ -95,15 +103,13 @@ describe('inspector', () => {
         });
         it('should return false for 4', () => {
           expect(notOneTwoOrThree(4))
-            .toEqual(['one', 'two', 'three']);
+            .toEqual(['not one', 'not two', 'not three']);
         });
       });
     });
 
     describe('or', () => {
-      const c = collector([a => a < 4, a => a % 2 === 1, a => a > 10], {
-        reducer: 'or',
-      });
+      const c = collector([a => a < 4, a => a % 2 === 1, a => a > 10], 'or');
 
       it('should return false if none of the tests are true', () => {
         expect(c(4))

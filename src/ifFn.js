@@ -11,6 +11,10 @@ const ifFn = (crit, onSucceed = false, onFail = false) => {
   const success = Is.function(onSucceed) ? onSucceed : () => onSucceed;
   const failure = Is.function(onFail) ? onFail : () => onFail;
 
+  if (!Is.function(rule)) {
+    console.log('bad rule ', rule, crit, onSucceed, onFail);
+    throw new Error('bad rule');
+  }
   return (value) => {
     const result = rule(value);
     return (result ? success(value, result) : failure(value, result));

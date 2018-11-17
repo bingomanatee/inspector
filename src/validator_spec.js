@@ -25,7 +25,7 @@ describe('inspector', () => {
       });
       it('should fail when not an object', () => {
         expect(v(3))
-          .toEqual(['not an object', 'ob.a <= 1']);
+          .toEqual(['not an object']);
       });
       it('should pass with an empty object', () => {
         expect(v())
@@ -69,22 +69,25 @@ describe('inspector', () => {
       });
 
       describe('should accept a collector', () => {
-        const isZero = collector(
+        const isZeroOr2 = collector(
           [
-            [a => a === 2, false, 'not two'],
-            [a => a === 0, false, 'not zero'],
+            [a => a === 2, 'is two'],
+            [a => a === 0, 'is zero'],
           ],
-          { reducer: 'and' },
+          'or',
         );
 
-        const v = validator(['number', isZero], { });
+        const v = validator(
+          ['number', [isZeroOr2, false, 'not zero or two']],
+          {},
+        );
 
         it('should fail a string', () => {
-          expect(v('bob')).toEqual(['not an number', ['not two', 'not zero']]);
+          expect(v('bob')).toEqual(['not an number']);
         });
 
         it('should fail a number that is not 0 or 2', () => {
-          expect(v(100)).toEqual([['not two', 'not zero']]);
+          expect(v(100)).toEqual(['not zero or two']);
         });
 
         it('should pass that is 0 or 2', () => {
@@ -92,7 +95,7 @@ describe('inspector', () => {
         });
 
         it('should fail on a falsy non-zero value', () => {
-          expect(v('')).toEqual(['not an number', ['not two', 'not zero']]);
+          expect(v('')).toEqual(['not an number']);
         });
       });
 
@@ -109,7 +112,7 @@ describe('inspector', () => {
 
         it('should fail on a non-object', () => {
           expect(v(3))
-            .toEqual(['not an object', 'ob.a <= 1']);
+            .toEqual(['not an object']);
         });
 
         it('should fail in no data', () => {

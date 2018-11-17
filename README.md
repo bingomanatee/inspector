@@ -2,6 +2,65 @@ Inspector evaluates things using one or more tests and returns validation result
 that validation libraries that exist don't seem to express boolean series well -- i.e., 
 "the value either doesn't exist or it meets these conditions" or "the value passes one of these tests".
 
+Writing singluar tests are easy. In fact we use the `Is` library for type and other simple tests. 
+
+When you compound tests things get complicated. For instance:
+
+* If a value is required how do you handle zero?
+* If you have multiple tests, do you execute all of them if the first fails?
+* What if there are multiple possibilities, each of which should be sub-validated?
+  as in, "Should be a string('yes' or 'no') or an array of strings ('yes' or 'no)"
+  
+## A big messy validator
+
+Lets take that last case.
+If you pass a string, it validates by a regex to yes or no.
+If it is passed an array, it validates each element by the above tests -- IF the element is a string.
+If it is passed a non-string/array it fails. 
+
+Seems simple but there is a lot of branches here:
+
+```javascript
+// the basic test -- assumes input is a string
+const stringIsYesOrNo = ifFn(a => /^yes|no$/.test(a), false, 'string is not yes or no');
+
+// executes the above IF input is a string
+const isStringAndYesOrNo = ifFn('string', stringIsYesOrNo, 'non string');
+// tests each values of the array -- assumes input is an array
+const eachElementIsYesOrNoString = list => list.reduce((m, value, index) => {
+  if (m) return m;
+  const error = isStringAndYesOrNo(value);
+  if (error) {
+    return {
+      value,
+      index,
+      error,
+    };
+  }
+  return false;
+}, false);
+// IF input is an array runs above tests -- otherwise fails.
+//    runs eachElementIsYesOrNoString but replaces failure message with
+//    a message about ARRAY failure
+
+// eslint-disable-next-line prefer-arrow-callback
+const isArrayOfYesOrNoStrings = ifFn(eachElementIsYesOrNoString, function (badValue, error) {
+  return `array element ${error.index} failed - (${error.value}) ${error.error}`;
+}, false);
+
+// listens to the non-string branch of the root
+// if in array, runs test on each element - else fails both type tests
+const isArrayAndArrayOfYesNoStrings = ifFn('array', isArrayOfYesOrNoStrings, 'not an array or a string');
+
+const isYesNoStringOrArrayOfYesNoStrings = ifFn(
+  'string', stringIsYesOrNo,
+  isArrayAndArrayOfYesNoStrings,
+);
+
+return validator(root);
+```
+       
+
 ## The Building Blocks
 
 note that in this system "false is the new true"; false means a test value has passed
@@ -31,79 +90,110 @@ const negFn = ifFn(posFn, 'positive');
 
 ### collectors 
 
-collectors take one or more ifFn constructors and reduces and combines the result from the tests down 
-using one or more methods: 
-
-* by default it returns all the non-false results of mapping the input against the tests.
-  (note -- non-falsy is literally that -- values that don't === `false`) 
-* If its reducer is 'and' and ANY of the tests return a false, false is returned.
-  otherwise, an array of all the results are returned.
-* If the reducer is 'or' and ALL of the tests are false, false is returned. Otherwise
-  an array of the FIRST non-falsy result is returned. 
-* if the reducer is 'filter', and ANY of the results are true, the true ones are returned.
-  Otherwise false is returned. 
-  
 ```javascript
 
-const isOneTwoorThree = collector(
+collector(test, reducer?)
+```
+* **tests**:  function |  string | [(function | string | [function, ifFalse, ifTrue])...]
+* **reducer**: 'and', 'or', function, [function, startValue]
+
+collectors are tuneable map-reducers that collect the results of arrays of tests 
+and return the non-zero results depending on the setting of the setting of the reducer. 
+If there are no true results, false is returned. If there are true results results vary
+depending on the value of the second argument(reducer).
+
+#### Logical reducers
+
+* by default (no reducer value) all truthy results are returned in an array
+  (unless there are none in which case false is returned.)
+* if passed 'and', false is returned unless ALL of the results are truthy, 
+  in which case they are returned in an array.
+* if passed 'or', the first truthy result is returned; if none, false is returned.
+
+'and' or 'or' tests don't necessarily execute all condition tests; and will stop executring
+after the first false result, and or will stop after the first true result. 
+
+```javascript
+
+const is123 = collector(
 [
   [a => a === 1, 'one'],
   [a => a === 2, 'two'],
   [a => a === 3, 'three'],
 ],
-{ reducer: 'or' },
+'or',
 );
 
-console.log(isOneTwoorThree(1)) // 'one'
-console.log(isOneTwoorThree(4)) // false
+console.log(is123(1)) // 'one'
+console.log(is123(4)) // false
 
-const notOneTwoOrThree = collector(
+const not123 = collector(
   [
-    [a => a === 1, false, 'one'],
-    [a => a === 2, false, 'two'],
-    [a => a === 3, false, 'three'],
+    [a => a === 1, false, 'not one'],
+    [a => a === 2, false, 'not two'],
+    [a => a === 3, false, 'not three'],
   ],
-  { reducer: 'and' },
+  'and',
 );
 
-console.log(notOneTwoOrThree(1)); // false
-console.log(notOneTwoOrThree(4)).toEqual(['one', 'two', 'three']); // failed all the tests
+console.log(not123(1)); // false
+console.log(not123(4)).toEqual(['not one', 'not two', 'not three']); // failed all the tests
 
 ```
- 
-The first parameter is an array. Each element in the array can be:
-* a function
-* a string (evaluated as a type check via Is -- see above) 
-* an array [string| function, ...] as with the tests above
 
-A single string or function can also be passed in, creating a one-test collector. 
+#### true reduction
 
-the last two are taken as arguments and passed through `ifFn`
-note that because collecters are themselves functions that evaluate to false or an array of values,
-they can be passed into this first argument list. 
+If the reducer is a function, this works as a map reducer.
+
+If the reducer is an array it is passed as a reducer with the first value being the iterator:
+
+``` javascript
+collector([a => a, a => a + 1, a => a + 2], (m, value) => (value * 5) + m)(0)
+// 15
+collector([a => a, a => a + 1, a => a + 2], [(m, value) => (value * 5) + m, 100])(0)
+// 115
+```
 
 ## The Validators
 
-Validators are functions that return an array of all failed tests,
-or false if none of the tests returned a value(indicating a valid value).
+```javascript
 
-To create a validator you pass an array of functions into the 
-validator class. The second argument is an object. If required is true
-or a string, to be returned as the error message when not present)
-then the tests pass (return false) if the value is falsy. (note this is 
-javascript falsy: empty string, false, null, or undefined). 
+validator(tests, {required, onFail});
 
-Why talk about all the components that go into these tests? Because 
-you can pass ifFns or collectors into the array of tests for the validators!
-I.e., you can create a validator.
+/**
+  * if it is an array:
+  *    if onFail is set:
+  *       each sub-array will be composed into an ifFn
+  *       each function in tests will be composed into an ifFn, using onFail as the failure case
+  *    otherwise:
+  *       each sub-array will be composed into an ifFn
+  *       each function will be returned un-altered
+  * if it is a function
+  *    if onFail is set
+  *       the function will be composed into a one-item array of an ifFn
+  *    else
+  *       the function will be put in an array un-altered.
+  *
+  * so in sum, onFail will reverse the output of functions in an array
+  */
+
+```
+
+## Required
+
+Required, the argument to the object that is the second parameter to the validator
+function can be omitted. 
+If required is passed in, then one of two situations will occur:
+
+* **if required is true** then any falsy values passed in throw an error (and no tests are executed).
+* **if required is false** then any falsy values *pass automatically* (and no tests are executed).
+* **if required is omitted** then the tests are composed into a collector with an "or" reduction pattern.
 
 ### Required is not required. 
 
-Required, the argument to the object that is the second parameter to the validator
-function can be omitted. That is because there are three scenarios for values:
+That is because there are three scenarios for values:
 
-* the value must be truthy (required), and non-truthy values failures 
-  are an error.
+* the value must be truthy (required), and non-truthy values failures are an error.
 * the value is not required, and falsy values shouldn't be tested. 
 
 Note - in BOTH of these scenarios there are a class of values that won't be tested.
@@ -118,8 +208,21 @@ and will never be tested for numeracy.
 so instead we pass NOTHING for the value of required and falsiness is not examined
 by validator. 
 
+```
+tests                              onfail               required  value  result
+-------------------------------------------------------------------------------------------------
+['number', a => a < 0, a => a % 2] 'not positive even'  false      0     false
+
+['number', a => a < 0, a => a % 2] 'not positive even'  (not set)  0     'not positive even'  
+
+['number', a => a < 0, a => a % 2] 'not positive even'  false      ''    false
+
+['number', a => a < 0, a => a % 2] 'not positive even'  (not set)  ''    'not an number'      
+
+```
+
 ```javascript
-const v = validator([[a => a === 0, false, 'not zero']], { });
+const v = validator([[a => a === 0, false, 'not zero']]);
 
 console.log(v(0)); // false
 console.log(v('')); // ['not zero'];
