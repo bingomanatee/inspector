@@ -1,8 +1,8 @@
-import ifFn from './ifFn';
-import collector from './collector';
-import validator from './validator';
-import { andFn, orFn } from './bool';
+import bottle from './bottle';
+
+const {
+  ifFn, collector, validator, andFn, orFn, defineCustomFunction,
+} = bottle().container;
 
 export default validator;
-
-export { ifFn, validator, collector, andFn, orFn };
+export { ifFn, collector, validator, andFn, orFn, defineCustomFunction };

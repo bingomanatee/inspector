@@ -15,6 +15,7 @@
     "neutrino": "^8.3.0"
   },
   "dependencies": {
+    "bottlejs": "^1.7.1",
     "is": "^3.2.1"
   },
   "description": "Inspector evaluates things using one or more tests and returns validation results.",

@@ -1,7 +1,12 @@
-import parseTests from './parseTests';
-import collector from './collector';
+import bottleFn from './bottle';
 
 describe('inspector', () => {
+  let parseTests;
+  beforeEach(() => {
+    const bottle = bottleFn();
+    parseTests = bottle.container.parseTests;
+  });
+
   describe('parseTests', () => {
     const pos = a => a >= 0;
     const even = a => a % 2;

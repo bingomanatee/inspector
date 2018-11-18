@@ -1,7 +1,14 @@
-import validator from './validator';
-import collector from './collector';
+import bottleFn from './bottle';
 
 describe('inspector', () => {
+  let validator;
+  let collector;
+  beforeEach(() => {
+    const bottle = bottleFn();
+    validator = bottle.container.validator;
+    collector = bottle.container.collector;
+  });
+
   describe('validator', () => {
     it('should accept a basic test', () => {
       const v = validator('object', { required: false });
@@ -14,10 +21,14 @@ describe('inspector', () => {
     });
 
     describe('should accept an array of tests', () => {
-      const v = validator([
-        'object',
-        [ob => ob && ob.a > 1, false, 'ob.a <= 1'],
-      ], { required: false });
+      let v;
+
+      beforeEach(() => {
+        v = validator([
+          'object',
+          [ob => ob && ob.a > 1, false, 'ob.a <= 1'],
+        ], { required: false });
+      });
 
       it('should pass a good object', () => {
         expect(v({ a: 2 }))
@@ -34,8 +45,9 @@ describe('inspector', () => {
     });
 
     describe('with required', () => {
+      let v;
       describe('should give feedback when missing value', () => {
-        const v = validator('object', { required: true });
+        beforeEach(() => { v = validator('object', { required: true }); });
 
         it('should pass with an object', () => {
           expect(v({ foo: 3 }))
@@ -53,7 +65,7 @@ describe('inspector', () => {
 
 
       describe('should accept a test without required', () => {
-        const v = validator([[a => a === 0, false, 'not zero']], { });
+        beforeEach(() => { v = validator([[a => a === 0, false, 'not zero']], { }); });
 
         it('should fail a string', () => {
           expect(v('')).toEqual(['not zero']);
@@ -69,18 +81,19 @@ describe('inspector', () => {
       });
 
       describe('should accept a collector', () => {
-        const isZeroOr2 = collector(
-          [
-            [a => a === 2, 'is two'],
-            [a => a === 0, 'is zero'],
-          ],
-          'or',
-        );
-
-        const v = validator(
-          ['number', [isZeroOr2, false, 'not zero or two']],
-          {},
-        );
+        beforeEach(() => {
+          const isZeroOr2 = collector(
+            [
+              [a => a === 2, 'is two'],
+              [a => a === 0, 'is zero'],
+            ],
+            'or',
+          );
+          v = validator(
+            ['number', [isZeroOr2, false, 'not zero or two']],
+            {},
+          );
+        });
 
         it('should fail a string', () => {
           expect(v('bob')).toEqual(['not an number']);
@@ -100,10 +113,12 @@ describe('inspector', () => {
       });
 
       describe('should accept an array of tests', () => {
-        const v = validator([
-          'object',
-          [ob => ob.a > 1, false, 'ob.a <= 1'],
-        ], { required: true });
+        beforeEach(() => {
+          v = validator([
+            'object',
+            [ob => ob.a > 1, false, 'ob.a <= 1'],
+          ], { required: true });
+        });
 
         it('should pass with a big object', () => {
           expect(v({ a: 2 }))

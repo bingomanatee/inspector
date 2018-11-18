@@ -1,8 +1,18 @@
-import collector from './collector';
-import ifFn from './ifFn';
-import { andFn, orFn } from './bool';
+import bottleFn from './bottle';
 
 describe('inspector', () => {
+  let ifFn;
+  let collector;
+  let andFn;
+  let orFn;
+
+  beforeEach(() => {
+    const bottle = bottleFn();
+    ifFn = bottle.container.ifFn;
+    collector = bottle.container.collector;
+    andFn = bottle.container.andFn;
+    orFn = bottle.container.orFn;
+  });
   describe('collector', () => {
     it('should fail on a non-array', () => {
       expect.assertions(1);
@@ -50,14 +60,14 @@ describe('inspector', () => {
     });
 
     describe('and', () => {
-      const c = andFn(a => a > 0, a => a % 2 === 0, a => a < 10);
-
       it('should return all the results if all are true', () => {
+        const c = andFn(a => a > 0, a => a % 2 === 0, a => a < 10);
         expect(c(4))
           .toEqual([true, true, true]);
       });
 
       it('should return no results if one is false', () => {
+        const c = andFn(a => a > 0, a => a % 2 === 0, a => a < 10);
         expect(c(0))
           .toEqual(false);
         expect(c(1))
@@ -65,20 +75,25 @@ describe('inspector', () => {
       });
 
       it('should return no results if all are false', () => {
+        const c = andFn(a => a > 0, a => a % 2 === 0, a => a < 10);
         expect(c(-1))
           .toEqual(false);
       });
     });
 
     describe('or inclusive', () => {
-      const isOneTwoorThree = collector(
-        [
-          [a => a === 1, 'one'],
-          [a => a === 2, 'two'],
-          [a => a === 3, 'three'],
-        ],
-        'or',
-      );
+      let isOneTwoorThree;
+
+      beforeEach(() => {
+        isOneTwoorThree = collector(
+          [
+            [a => a === 1, 'one'],
+            [a => a === 2, 'two'],
+            [a => a === 3, 'three'],
+          ],
+          'or',
+        );
+      });
 
       it('should return one for 1', () => {
         expect(isOneTwoorThree(1))
@@ -90,14 +105,18 @@ describe('inspector', () => {
       });
 
       describe('and exclusive', () => {
-        const notOneTwoOrThree = collector(
-          [
-            [a => a === 1, false, 'not one'],
-            [a => a === 2, false, 'not two'],
-            [a => a === 3, false, 'not three'],
-          ],
-          'and',
-        );
+        let notOneTwoOrThree;
+
+        beforeEach(() => {
+          notOneTwoOrThree = collector(
+            [
+              [a => a === 1, false, 'not one'],
+              [a => a === 2, false, 'not two'],
+              [a => a === 3, false, 'not three'],
+            ],
+            'and',
+          );
+        });
 
         it('should return one for 1', () => {
           expect(notOneTwoOrThree(1))
@@ -111,7 +130,11 @@ describe('inspector', () => {
     });
 
     describe('or', () => {
-      const c = collector([a => a < 4, a => a % 2 === 1, a => a > 10], 'or');
+      let c;
+
+      beforeEach(() => {
+        c = collector([a => a < 4, a => a % 2 === 1, a => a > 10], 'or');
+      });
 
       it('should return false if none of the tests are true', () => {
         expect(c(4))
@@ -130,26 +153,30 @@ describe('inspector', () => {
     });
 
     describe('compound tests', () => {
-      // the basic test -- assumes input is a string
-      const stringIsYesOrNo = ifFn(a => /^yes|no$/.test(a), false, 'string is not yes or no');
-      // executes the above IF input is a string
-      const isStringAndYesOrNo = ifFn('string', stringIsYesOrNo, 'non string');
-      // tests each values of the array -- assumes input is an array
-      const eachElementIsYesOrNoString = list => list.reduce((m, value, index) => m || (error => error && {
-        value,
-        index,
-        error,
-      })(isStringAndYesOrNo(value)), false);
-      const isArrayOfYesOrNoStrings = ifFn(eachElementIsYesOrNoString, (badValue, error) => `array element ${error.index} failed - (${error.value}) ${error.error}`);
+      let isYesNoStringOrArrayOfYesNoStrings;
+      beforeEach(() => {
+        // the basic test -- assumes input is a string
+        const stringIsYesOrNo = ifFn(a => /^yes|no$/.test(a), false, 'string is not yes or no');
+        // executes the above IF input is a string
+        const isStringAndYesOrNo = ifFn('string', stringIsYesOrNo, 'non string');
+        // tests each values of the array -- assumes input is an array
+        const eachElementIsYesOrNoString = list => list.reduce((m, value, index) => m || (error => error && {
+          value,
+          index,
+          error,
+        })(isStringAndYesOrNo(value)), false);
+        const isArrayOfYesOrNoStrings = ifFn(eachElementIsYesOrNoString, (badValue, error) => `array element ${error.index} failed - (${error.value}) ${error.error}`);
 
-      const isYesNoStringOrArrayOfYesNoStrings = orFn(
-        [andFn(
-          'string',
-          'array',
-        ), 'not a string or array'],
-        ['string', stringIsYesOrNo],
-        ['array', isArrayOfYesOrNoStrings],
-      );
+        isYesNoStringOrArrayOfYesNoStrings = orFn(
+          [orFn(
+            'string',
+            'array',
+          ), false, 'not a string or array'],
+          ['string', stringIsYesOrNo],
+          ['array', isArrayOfYesOrNoStrings],
+        );
+      });
+
 
       it('should return true for yes', () => {
         expect(isYesNoStringOrArrayOfYesNoStrings('yes'))

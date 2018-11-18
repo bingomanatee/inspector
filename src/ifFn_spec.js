@@ -1,11 +1,21 @@
-import ifFn from './ifFn';
-import validator from './validator';
+import bottleFn from './bottle';
 
 describe('inspector', () => {
+  let ifFn;
+
+  beforeEach(() => {
+    const bottle = bottleFn();
+    ifFn = bottle.container.ifFn;
+  });
+
   describe('ifFn', () => {
     describe('single argument', () => {
       describe('simple function', () => {
-        const isZero = ifFn(a => (a === 0 ? false : 'not zero'));
+        let isZero;
+
+        beforeEach(() => {
+          isZero = ifFn(a => (a === 0 ? false : 'not zero'));
+        });
         it('should pass results when given a function with no other args', () => {
           expect(isZero(0))
             .toEqual(false);
@@ -15,7 +25,9 @@ describe('inspector', () => {
       });
 
       describe('string', () => {
-        const isObject = ifFn('object');
+        let isObject;
+
+        beforeEach(() => { isObject = ifFn('object'); });
 
         it('should accept objects', () => {
           expect(isObject({}))
@@ -34,7 +46,11 @@ describe('inspector', () => {
 
     describe('one argument', () => {
       describe('simple function', () => {
-        const isNotZero = ifFn(a => (a === 0 ? false : 'not zero'), 'is not zero');
+        let isNotZero;
+
+        beforeEach(() => {
+          isNotZero = ifFn(a => (a === 0 ? false : 'not zero'), 'is not zero');
+        });
         it('should pass results when given a function with no other args', () => {
           expect(isNotZero(0))
             .toEqual(false);
@@ -44,7 +60,11 @@ describe('inspector', () => {
       });
 
       describe('string', () => {
-        const isObject = ifFn('object', 'is object');
+        let isObject;
+
+        beforeEach(() => {
+          isObject = ifFn('object', 'is object');
+        });
 
         it('should reject objects', () => {
           expect(isObject({}))
@@ -62,7 +82,12 @@ describe('inspector', () => {
 
       describe('functional argument', () => {
         describe('simple function', () => {
-          const isNotZero = ifFn(a => (a === 0 ? false : 'not zero'), value => `${value} is not zero`);
+          let isNotZero;
+
+          beforeEach(() => {
+            isNotZero = ifFn(a => (a === 0 ? false : 'not zero'), value => `${value} is not zero`);
+          });
+
           it('should pass results when given a function with no other args', () => {
             expect(isNotZero(0))
               .toEqual(false);
@@ -72,7 +97,9 @@ describe('inspector', () => {
         });
 
         describe('string', () => {
-          const isObject = ifFn('object', value => `${JSON.stringify(value)} is object`);
+          let isObject;
+
+          beforeEach(() => isObject = ifFn('object', value => `${JSON.stringify(value)} is object`));
 
           it('should reject objects', () => {
             expect(isObject({ a: 1 }))
@@ -91,8 +118,11 @@ describe('inspector', () => {
     });
 
     describe('two arguments', () => {
+      let isOdd;
       describe('basic true false test', () => {
-        const isOdd = ifFn(a => a % 2, false, 'is even');
+        beforeEach(() => {
+          isOdd = ifFn(a => a % 2, false, 'is even');
+        });
 
         it('should return false if odd', () => expect(isOdd(1))
           .toBeFalsy());
@@ -101,7 +131,9 @@ describe('inspector', () => {
       });
 
       describe('basic true false test(reverse)', () => {
-        const isOdd = ifFn(a => a % 2, 'is odd', false);
+        beforeEach(() => {
+          isOdd = ifFn(a => a % 2, 'is odd', false);
+        });
 
         it('should return false if odd', () => expect(isOdd(2))
           .toBeFalsy());
@@ -110,34 +142,41 @@ describe('inspector', () => {
       });
 
       describe('nested tests', () => {
-        // the basic test -- assumes input is a string
-        const stringIsYesOrNo = ifFn(a => /^yes|no$/.test(a), false, 'string is not yes or no');
+        let isYesNoStringOrArrayOfYesNoStrings;
+        beforeEach(() => {
+          // the basic test -- assumes input is a string
+          const stringIsYesOrNo = ifFn(a => /^yes|no$/.test(a), false, 'string is not yes or no');
 
-        // executes the above IF input is a string
-        const isStringAndYesOrNo = ifFn('string', stringIsYesOrNo, 'non string');
-        // tests each values of the array -- assumes input is an array
-        const eachElementIsYesOrNoString = list => list.reduce((m, value, index) => {
-          if (m) return m;
-          const error = isStringAndYesOrNo(value);
-          return (error) ? {value, index, error}: false
-        }, false);
-        // IF input is an array runs above tests -- otherwise fails.
-        //    runs eachElementIsYesOrNoString but replaces failure message with
-        //    a message about ARRAY failure
+          // executes the above IF input is a string
+          const isStringAndYesOrNo = ifFn('string', stringIsYesOrNo, 'non string');
+          // tests each values of the array -- assumes input is an array
+          const eachElementIsYesOrNoString = list => list.reduce((m, value, index) => {
+            if (m) return m;
+            const error = isStringAndYesOrNo(value);
+            return (error) ? {
+              value,
+              index,
+              error,
+            } : false;
+          }, false);
+          // IF input is an array runs above tests -- otherwise fails.
+          //    runs eachElementIsYesOrNoString but replaces failure message with
+          //    a message about ARRAY failure
 
-        // eslint-disable-next-line prefer-arrow-callback
-        const isArrayOfYesOrNoStrings = ifFn(eachElementIsYesOrNoString, function (badValue, error) {
-          return `array element ${error.index} failed - (${error.value}) ${error.error}`;
-        }, false);
+          // eslint-disable-next-line prefer-arrow-callback
+          const isArrayOfYesOrNoStrings = ifFn(eachElementIsYesOrNoString, function (badValue, error) {
+            return `array element ${error.index} failed - (${error.value}) ${error.error}`;
+          }, false);
 
-        // listens to the non-string branch of the root
-        // if in array, runs test on each element - else fails both type tests
-        const isArrayAndArrayOfYesNoStrings = ifFn('array', isArrayOfYesOrNoStrings, 'not an array or a string');
+          // listens to the non-string branch of the root
+          // if in array, runs test on each element - else fails both type tests
+          const isArrayAndArrayOfYesNoStrings = ifFn('array', isArrayOfYesOrNoStrings, 'not an array or a string');
 
-        const isYesNoStringOrArrayOfYesNoStrings = ifFn(
-          'string', stringIsYesOrNo,
-          isArrayAndArrayOfYesNoStrings,
-        );
+          isYesNoStringOrArrayOfYesNoStrings = ifFn(
+            'string', stringIsYesOrNo,
+            isArrayAndArrayOfYesNoStrings,
+          );
+        });
 
         it('should return true for yes', () => {
           expect(isYesNoStringOrArrayOfYesNoStrings('yes'))

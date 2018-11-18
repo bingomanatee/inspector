@@ -1,9 +1,4 @@
-import Is from 'is';
-
 import { NOT_ABSENT, REQUIRED_NOT_SET } from './constants';
-import collector from './collector';
-import ifFn from './ifFn';
-import parseTests from './parseTests';
 
 /**
  * The tests passed in to Validator can be one of may formats:
@@ -24,43 +19,44 @@ import parseTests from './parseTests';
  * so in sum, onFail will reverse the output of functions in an array,
  * or a single passed function.
  *
- * @param tests {variant}
- * @param required {boolean?}
- * @param onFail {truthy string, optional}
- * @returns {function}
  */
-export default (tests, config = {}) => {
-  const { required = REQUIRED_NOT_SET, onFail = false } = config;
-  const testList = parseTests(tests, onFail);
 
-  if (!Array.isArray(testList)) {
-    console.log('tests not turned into an array:', tests, testList);
-    throw new Error('cannot array-ify ', tests);
-  }
-  const validationTests = testList.map((args) => {
-    if (Array.isArray(args)) return ifFn(...args);
-    return ifFn(args);
+export default (bottle) => {
+  bottle.factory('validator', ({
+    ifFn, collector, Is, parseTests,
+  }) => (tests, config = {}) => {
+    const { required = REQUIRED_NOT_SET, onFail = false } = config;
+    const testList = parseTests(tests, onFail);
+
+    if (!Array.isArray(testList)) {
+      console.log('tests not turned into an array:', tests, testList);
+      throw new Error('cannot array-ify ', tests);
+    }
+    const validationTests = testList.map((args) => {
+      if (Array.isArray(args)) return ifFn(...args);
+      return ifFn(args);
+    });
+    let compound;
+    if (!required) {
+      compound = value => collector(
+        [
+          ifFn(a => a, NOT_ABSENT),
+          collector(validationTests, 'or'),
+        ],
+        'and',
+      )(value)[1] || false;
+    } else if (required === REQUIRED_NOT_SET) {
+      compound = collector(validationTests, 'or');
+    } else {
+      const requiredMsg = (Is.string(required)) ? required : 'required';
+      validationTests.unshift([a => a, false, requiredMsg]);
+      compound = collector(validationTests, 'or');
+    }
+
+    return (value) => {
+      let result = compound(value);
+      if (result && !Array.isArray(result)) result = [result];
+      return result;
+    };
   });
-  let compound;
-  if (!required) {
-    compound = value => collector(
-      [
-        ifFn(a => a, NOT_ABSENT),
-        collector(validationTests, 'or'),
-      ],
-      'and',
-    )(value)[1] || false;
-  } else if (required === REQUIRED_NOT_SET) {
-    compound = collector(validationTests, 'or');
-  } else {
-    const requiredMsg = (Is.string(required)) ? required : 'required';
-    validationTests.unshift([a => a, false, requiredMsg]);
-    compound = collector(validationTests, 'or');
-  }
-
-  return (value) => {
-    let result = compound(value);
-    if (result && !Array.isArray(result)) result = [result];
-    return result;
-  };
 };
